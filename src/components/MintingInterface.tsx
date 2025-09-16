@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,12 +6,10 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Lock, Sparkles, Eye, EyeOff, Wallet, CheckCircle, Loader2, Shield } from "lucide-react";
+import { Lock, Sparkles, Eye, EyeOff, Wallet, CheckCircle, Loader2, Shield, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from 'wagmi';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
-import { MYSTIC_MINT_ABI, MYSTIC_MINT_ADDRESS } from '@/contracts/MysticMintABI';
-import { encryptParams, validateEncryptedParams, getPatternTypeNumber } from '@/lib/fhe';
+import { useContract } from '@/hooks/useContract';
 import heroArt from "@/assets/hero-art.jpg";
 
 export const MintingInterface = () => {
@@ -20,15 +18,21 @@ export const MintingInterface = () => {
   const [colorVariation, setColorVariation] = useState([75]);
   const [pattern, setPattern] = useState("geometric");
   const [title, setTitle] = useState("");
-  const [mintingState, setMintingState] = useState<"idle" | "connecting" | "encrypting" | "minting" | "success" | "error">("idle");
-  const [progress, setProgress] = useState(0);
   const { toast } = useToast();
   
-  const { address, isConnected } = useAccount();
-  const { writeContract, data: hash, isPending, error } = useWriteContract();
-  const { isLoading: isConfirming, isSuccess } = useWaitForTransactionReceipt({
-    hash,
-  });
+  // Use the contract hook for all contract interactions
+  const {
+    mintingState,
+    isLoading,
+    isConnected,
+    address,
+    artworkCount,
+    mintPrice,
+    mintArtwork,
+    resetMintingState,
+    transactionHash,
+    artworkId
+  } = useContract();
 
   const mintingSteps = [
     { key: "connecting", label: "Connecting Wallet", progress: 20 },
@@ -56,85 +60,35 @@ export const MintingInterface = () => {
       return;
     }
 
-    try {
-      setMintingState("encrypting");
-      setProgress(50);
-      
-      // Step 1: Encrypt parameters using FHE
-      const params = {
-        complexity: complexity[0],
-        colorVariation: colorVariation[0],
-        patternType: getPatternTypeNumber(pattern)
-      };
-      
-      const encryptedParams = encryptParams(params);
-      
-      // Validate encrypted parameters
-      if (!validateEncryptedParams(encryptedParams)) {
-        throw new Error("Failed to encrypt parameters");
-      }
-      
-      toast({
-        title: "Parameters Encrypted",
-        description: "Your art parameters have been encrypted using FHE",
-      });
-      
-      setTimeout(() => {
-        setMintingState("minting");
-        setProgress(80);
-        
-        // Step 2: Call smart contract with encrypted data
-        writeContract({
-          address: MYSTIC_MINT_ADDRESS,
-          abi: MYSTIC_MINT_ABI,
-          functionName: 'mintArtwork',
-          args: [
-            title,
-            {
-              complexity: encryptedParams.complexity as any, // Simulated externalEuint32
-              colorVariation: encryptedParams.colorVariation as any, // Simulated externalEuint32
-              patternType: encryptedParams.patternType as any, // Simulated externalEuint8
-              inputProof: encryptedParams.proof
-            }
-          ],
-          value: BigInt(0.1 * 10**18), // 0.1 ETH in wei
-        });
-      }, 2000);
-    } catch (error) {
-      setMintingState("error");
-      toast({
-        title: "Minting Failed",
-        description: error instanceof Error ? error.message : "An error occurred during minting",
-        variant: "destructive",
-      });
-    }
+    // Use the contract hook to mint artwork
+    await mintArtwork({
+      title,
+      complexity: complexity[0],
+      colorVariation: colorVariation[0],
+      pattern,
+      mintPrice: 0.1
+    });
   };
 
-  // Handle transaction success
-  if (isSuccess && mintingState === "minting") {
-    setMintingState("success");
-    setProgress(100);
-    toast({
-      title: "Minting Successful!",
-      description: `"${title}" has been minted with encrypted parameters`,
-    });
-    
-    setTimeout(() => {
-      setMintingState("idle");
-      setProgress(0);
-      setTitle("");
-    }, 3000);
-  }
+  // Auto-reset form after successful mint
+  useEffect(() => {
+    if (mintingState.status === 'success') {
+      const timer = setTimeout(() => {
+        resetMintingState();
+        setTitle("");
+      }, 3000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [mintingState.status, resetMintingState]);
 
   const toggleEncryption = () => {
     setIsEncrypted(!isEncrypted);
   };
 
   const getCurrentStep = () => {
-    return mintingSteps.find(step => step.key === mintingState);
+    return mintingSteps.find(step => step.key === mintingState.status);
   };
-
-  const isLoading = mintingState === "connecting" || mintingState === "encrypting" || mintingState === "minting";
 
   return (
     <div className="container mx-auto px-4 py-12">
@@ -261,7 +215,7 @@ export const MintingInterface = () => {
               </div>
 
               {/* FHE Encryption Status */}
-              {mintingState === "encrypting" && (
+              {mintingState.status === "encrypting" && (
                 <div className="space-y-3 p-4 bg-gradient-to-r from-purple-500/10 to-pink-500/10 rounded-lg border border-purple-500/20">
                   <div className="flex items-center gap-2">
                     <Shield className="h-4 w-4 text-purple-500 animate-pulse" />
@@ -269,7 +223,7 @@ export const MintingInterface = () => {
                       FHE Encryption in Progress
                     </span>
                   </div>
-                  <Progress value={progress} className="w-full" />
+                  <Progress value={mintingState.progress} className="w-full" />
                   <p className="text-xs text-muted-foreground">
                     Encrypting your art parameters using Fully Homomorphic Encryption
                   </p>
@@ -277,7 +231,7 @@ export const MintingInterface = () => {
               )}
 
               {/* Minting Progress */}
-              {isLoading && mintingState !== "encrypting" && (
+              {isLoading && mintingState.status !== "encrypting" && (
                 <div className="space-y-3 p-4 bg-muted/20 rounded-lg border border-primary/20">
                   <div className="flex items-center gap-2">
                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
@@ -285,14 +239,14 @@ export const MintingInterface = () => {
                       {getCurrentStep()?.label || "Processing..."}
                     </span>
                   </div>
-                  <Progress value={progress} className="w-full" />
+                  <Progress value={mintingState.progress} className="w-full" />
                   <p className="text-xs text-muted-foreground">
                     Please don't close this window during the minting process
                   </p>
                 </div>
               )}
 
-              {mintingState === "success" && (
+              {mintingState.status === "success" && (
                 <div className="space-y-3 p-4 bg-gradient-to-r from-green-500/10 to-emerald-500/10 rounded-lg border border-green-500/30">
                   <div className="flex items-center gap-2">
                     <CheckCircle className="h-4 w-4 text-green-500" />
@@ -304,6 +258,17 @@ export const MintingInterface = () => {
                     <p className="text-xs text-muted-foreground">
                       Your art parameters have been encrypted and stored on-chain
                     </p>
+                    {transactionHash && (
+                      <div className="flex items-center gap-1 text-xs text-blue-600">
+                        <ExternalLink className="h-3 w-3" />
+                        <span>Tx: {transactionHash.slice(0, 10)}...</span>
+                      </div>
+                    )}
+                    {artworkId && (
+                      <div className="flex items-center gap-1 text-xs text-purple-600">
+                        <span>Artwork ID: #{artworkId}</span>
+                      </div>
+                    )}
                     <div className="flex items-center gap-1 text-xs text-green-600">
                       <Shield className="h-3 w-3" />
                       <span>FHE Protected</span>
@@ -324,7 +289,7 @@ export const MintingInterface = () => {
             <CardContent className="space-y-4">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Mint Price:</span>
-                <span className="font-semibold">0.1 ETH</span>
+                <span className="font-semibold">{mintPrice.toFixed(3)} ETH</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">FHE Encryption:</span>
@@ -338,6 +303,10 @@ export const MintingInterface = () => {
                 <Badge variant="secondary" className="bg-pink-500/20 text-pink-600">
                   Maximum
                 </Badge>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Total Artworks:</span>
+                <span className="text-sm font-medium">{artworkCount}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Estimated Gas:</span>
@@ -358,29 +327,29 @@ export const MintingInterface = () => {
               />
             </div>
           ) : (
-            <Button 
-              onClick={handleMint}
-              size="lg"
-              className="w-full neon-glow bg-primary hover:bg-primary/90"
-              disabled={mintingState !== "idle" || isPending || isConfirming}
-            >
-              {mintingState === "encrypting" || mintingState === "minting" || isPending || isConfirming ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  {getCurrentStep()?.label || "Processing..."}
-                </>
-              ) : mintingState === "success" ? (
-                <>
-                  <CheckCircle className="mr-2 h-5 w-5" />
-                  Minted Successfully
-                </>
-              ) : (
-                <>
-                  <Shield className="mr-2 h-5 w-5" />
-                  Mint FHE-Protected Art
-                </>
-              )}
-            </Button>
+                    <Button 
+                      onClick={handleMint}
+                      size="lg"
+                      className="w-full neon-glow bg-primary hover:bg-primary/90"
+                      disabled={mintingState.status !== "idle" || isLoading}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          {getCurrentStep()?.label || "Processing..."}
+                        </>
+                      ) : mintingState.status === "success" ? (
+                        <>
+                          <CheckCircle className="mr-2 h-5 w-5" />
+                          Minted Successfully
+                        </>
+                      ) : (
+                        <>
+                          <Shield className="mr-2 h-5 w-5" />
+                          Mint FHE-Protected Art
+                        </>
+                      )}
+                    </Button>
           )}
         </div>
       </div>
