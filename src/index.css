@@ -1,0 +1,191 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Confidential Generative Art Minting Design System
+All colors MUST be HSL.
+*/
+
+@layer base {
+  :root {
+    /* Dark artistic theme */
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
+
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
+
+    --popover: 240 5% 6%;
+    --popover-foreground: 0 0% 98%;
+
+    /* Electric blue primary */
+    --primary: 191 100% 50%;
+    --primary-foreground: 240 10% 3.9%;
+
+    /* Deep purple secondary */
+    --secondary: 270 40% 15%;
+    --secondary-foreground: 0 0% 98%;
+
+    --muted: 240 5% 15%;
+    --muted-foreground: 240 5% 64.9%;
+
+    /* Neon cyan accent */
+    --accent: 180 100% 50%;
+    --accent-foreground: 240 10% 3.9%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5% 15%;
+    --input: 240 5% 15%;
+    --ring: 191 100% 50%;
+
+    --radius: 0.75rem;
+
+    /* Custom art platform tokens */
+    --neon-pink: 300 100% 70%;
+    --neon-green: 120 100% 50%;
+    --gallery-black: 240 10% 3.9%;
+    --mystery-purple: 270 60% 20%;
+    --electric-glow: 191 100% 80%;
+
+    /* Gradients */
+    --gradient-neon: linear-gradient(135deg, hsl(191 100% 50%), hsl(300 100% 70%));
+    --gradient-mystery: linear-gradient(180deg, hsl(240 10% 3.9%), hsl(270 40% 8%));
+    --gradient-glow: linear-gradient(135deg, hsl(191 100% 50% / 0.1), hsl(300 100% 70% / 0.1));
+
+    /* Shadows and effects */
+    --shadow-neon: 0 0 30px hsl(191 100% 50% / 0.3);
+    --shadow-mystery: 0 10px 40px hsl(240 10% 0% / 0.5);
+    --glow-intense: 0 0 50px hsl(191 100% 50% / 0.4);
+
+    /* Animation timing */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-glow: all 0.5s ease-in-out;
+
+    --sidebar-background: 0 0% 98%;
+
+    --sidebar-foreground: 240 5.3% 26.1%;
+
+    --sidebar-primary: 240 5.9% 10%;
+
+    --sidebar-primary-foreground: 0 0% 98%;
+
+    --sidebar-accent: 240 4.8% 95.9%;
+
+    --sidebar-accent-foreground: 240 5.9% 10%;
+
+    --sidebar-border: 220 13% 91%;
+
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    background: var(--gradient-mystery);
+  }
+}
+
+@layer components {
+  /* Art Platform Specific Components */
+  .neon-glow {
+    box-shadow: var(--shadow-neon);
+    transition: var(--transition-glow);
+  }
+
+  .neon-glow:hover {
+    box-shadow: var(--glow-intense);
+  }
+
+  .mystery-card {
+    background: var(--gradient-glow);
+    backdrop-filter: blur(10px);
+    border: 1px solid hsl(var(--border));
+    transition: var(--transition-smooth);
+  }
+
+  .mystery-card:hover {
+    border-color: hsl(var(--primary));
+    box-shadow: var(--shadow-neon);
+  }
+
+  .encrypted-text {
+    background: var(--gradient-neon);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    animation: shimmer 2s ease-in-out infinite alternate;
+  }
+
+  @keyframes shimmer {
+    0% { opacity: 0.7; }
+    100% { opacity: 1; }
+  }
+
+  .art-border {
+    position: relative;
+    border: 1px solid hsl(var(--border));
+  }
+
+  .art-border::before {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    background: var(--gradient-neon);
+    border-radius: inherit;
+    z-index: -1;
+    opacity: 0;
+    transition: var(--transition-glow);
+  }
+
+  .art-border:hover::before {
+    opacity: 1;
+  }
+}
